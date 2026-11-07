@@ -1,0 +1,210 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Photo Enhancer</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #10172a, #252b48);
+  color: white;
+  text-align: center;
+}
+
+.container {
+  max-width: 500px;
+  margin: 35px auto;
+  padding: 25px;
+  background: #202943;
+  border-radius: 20px;
+}
+
+h1 {
+  color: #66e3ff;
+}
+
+p {
+  color: #cbd5e1;
+}
+
+input[type="file"] {
+  width: 100%;
+  margin: 20px 0;
+}
+
+img {
+  max-width: 100%;
+  max-height: 350px;
+  border-radius: 12px;
+  margin: 15px 0;
+  display: none;
+}
+
+label {
+  display: block;
+  margin-top: 15px;
+}
+
+input[type="range"] {
+  width: 100%;
+  margin-top: 8px;
+}
+
+button {
+  background: #00bfe9;
+  color: #071421;
+  border: none;
+  padding: 13px 20px;
+  margin: 10px 5px;
+  border-radius: 10px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+#download {
+  display: none;
+  color: #66e3ff;
+  font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>✨ AI Photo Enhancer</h1>
+<p>Improve your photos with simple editing tools.</p>
+
+<input type="file" id="upload" accept="image/*">
+
+<img id="preview" alt="Photo preview">
+
+<label>Brightness</label>
+<input type="range" id="brightness" min="50" max="200" value="100">
+
+<label>Contrast</label>
+<input type="range" id="contrast" min="50" max="200" value="100">
+
+<label>Sharpness</label>
+<input type="range" id="sharpness" min="0" max="100" value="0">
+
+<br>
+
+<button onclick="enhance()">Apply Changes</button>
+<button onclick="resetImage()">Reset</button>
+
+<br><br>
+
+<a id="download" download="enhanced-photo.png">
+Download Enhanced Photo
+</a>
+
+<canvas id="canvas" style="display:none;"></canvas>
+
+</div>
+
+<script>
+const upload = document.getElementById("upload");
+const preview = document.getElementById("preview");
+const canvas = document.getElementById("canvas");
+
+let originalImage = new Image();
+
+upload.addEventListener("change", function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+        alert("Please select an image.");
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        originalImage.onload = function() {
+            preview.style.display = "block";
+            enhance();
+        };
+        originalImage.src = e.target.result;
+    };
+
+    reader.readAsDataURL(file);
+});
+
+function enhance() {
+    if (!originalImage.complete || !originalImage.naturalWidth) return;
+
+    const ctx = canvas.getContext("2d");
+
+    canvas.width = originalImage.naturalWidth;
+    canvas.height = originalImage.naturalHeight;
+
+    const brightness = document.getElementById("brightness").value;
+    const contrast = document.getElementById("contrast").value;
+    const sharpness = Number(document.getElementById("sharpness").value);
+
+    ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+    ctx.drawImage(originalImage, 0, 0);
+    ctx.filter = "none";
+
+    if (sharpness > 0) {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const src = new Uint8ClampedArray(imageData.data);
+        const dst = imageData.data;
+        const amount = sharpness / 100 * 0.5;
+        const w = canvas.width;
+        const h = canvas.height;
+
+        for (let y = 1; y < h - 1; y++) {
+            for (let x = 1; x < w - 1; x++) {
+                const i = (y * w + x) * 4;
+
+                for (let c = 0; c < 3; c++) {
+                    const neighbors =
+                        src[i - 4 + c] +
+                        src[i + 4 + c] +
+                        src[i - w * 4 + c] +
+                        src[i + w * 4 + c];
+
+                    const average = neighbors / 4;
+                    dst[i + c] = src[i + c] +
+                        amount * (src[i + c] - average);
+                }
+            }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+    }
+
+    preview.src = canvas.toDataURL("image/png");
+
+    const download = document.getElementById("download");
+    download.href = canvas.toDataURL("image/png");
+    download.style.display = "inline-block";
+}
+
+function resetImage() {
+    document.getElementById("brightness").value = 100;
+    document.getElementById("contrast").value = 100;
+    document.getElementById("sharpness").value = 0;
+
+    if (originalImage.src) {
+        preview.src = originalImage.src;
+        enhance();
+    }
+}
+</script>
+
+</body>
+</html>
